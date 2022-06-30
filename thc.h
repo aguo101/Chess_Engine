@@ -22,6 +22,7 @@
 
 #include <stddef.h>
 #include <string>
+#include <cstring>
 #include <vector>
 /****************************************************************************
  * Chessdefs.h Chess classes - Common definitions
