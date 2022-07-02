@@ -17,9 +17,9 @@ Play::Play() {
 }
 
 Play::~Play() {
-    delete(white);
-    delete(black);
-    delete(board);
+    delete white;
+    delete black;
+    delete board;
 }
 
 Play::Play(Player* w, Player* b) : white(w), black(b) {

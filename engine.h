@@ -18,7 +18,7 @@ class Engine : public Player {
 
     private:
 
-    MoveEval minimax(ChessRules& position, uint32_t depth);
+    MoveEval minimax(ChessRules& position, uint32_t depth, double alpha, double beta);
 
     static uint32_t m_depth;
 };

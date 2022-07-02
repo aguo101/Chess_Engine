@@ -1,16 +1,19 @@
 #include "engine.h"
 #include <vector>
+#include <stdlib.h>
 
 using std::vector;
+using std::max;
+using std::min;
 
-uint32_t Engine::m_depth = 5;
+uint32_t Engine::m_depth = 7;
 
-constexpr int rookVal = 5;
-constexpr int knightVal = 3;
-constexpr int bishopVal = 3;
-constexpr int queenVal = 9;
-constexpr int kingVal = 10000;
-constexpr int pawnVal = 1;
+constexpr double rookVal = 5;
+constexpr double knightVal = 3;
+constexpr double bishopVal = 3;
+constexpr double queenVal = 9;
+constexpr double kingVal = 10000;
+constexpr double pawnVal = 1;
 
 Engine::Engine() {}
 
@@ -64,11 +67,11 @@ double Engine::evaluatePosition(ChessPosition& position) {
 }
 
 Move Engine::getMove(ChessRules& position) {
-    MoveEval moveToMake = minimax(position, m_depth);
+    MoveEval moveToMake = minimax(position, m_depth, -kingVal, kingVal);
     return moveToMake.move;
 }
 
-MoveEval Engine::minimax(ChessRules& position, uint32_t depth) {
+MoveEval Engine::minimax(ChessRules& position, uint32_t depth, double alpha, double beta) {
     if(depth == 0) {
         MoveEval ret;
         ret.eval = evaluatePosition(position);
@@ -77,34 +80,53 @@ MoveEval Engine::minimax(ChessRules& position, uint32_t depth) {
 
     MoveEval optimalMove;
 
-    return optimalMove; // temporary
-
     // check for Mate/Draw
-    // TERMINAL score_terminal;
-    // position.Evaluate(score_terminal);
-    // switch (score_terminal) {
-    //     case TERMINAL_WCHECKMATE:
-    //         return true;
-    //         break;
-    //     case TERMINAL_WSTALEMATE:
-    //         return true;
-    //         break;
-    //     case TERMINAL_BCHECKMATE:
-    //         return true;
-    //         break;
-    //     case TERMINAL_BSTALEMATE:
-    //         return true;
-    //         break;
-    // }
+    TERMINAL score_terminal;
+    position.Evaluate(score_terminal);
+    switch (score_terminal) {
+        case TERMINAL_WCHECKMATE:
+            optimalMove.eval = -kingVal;
+            return optimalMove;
+        case TERMINAL_WSTALEMATE:
+            optimalMove.eval = 0;
+            return optimalMove;
+        case TERMINAL_BCHECKMATE:
+            optimalMove.eval = kingVal;
+            return optimalMove;
+            break;
+        case TERMINAL_BSTALEMATE:
+            optimalMove.eval = 0;
+            return optimalMove;
+    }
 
-    // vector<Move> moves;
-    // position.GenLegalMoveList(moves);
+    vector<Move> moves;
+    position.GenLegalMoveList(moves);
 
+    bool whiteToPlay = position.WhiteToPlay();
+    if(whiteToPlay) {
+        optimalMove.eval = -kingVal;
+    } else {
+        optimalMove.eval = kingVal;
+    }
 
+    MoveEval tempMove;
+    for(Move& mv : moves) {
+        position.PushMove(mv);
+        tempMove = minimax(position, depth - 1, alpha, beta);
+        tempMove.move = mv;
+        position.PopMove(mv);
+        if(whiteToPlay && tempMove.eval > optimalMove.eval) {
+            optimalMove = tempMove;
+            alpha = max(alpha, optimalMove.eval);
+        }
+        else if(!whiteToPlay && tempMove.eval < optimalMove.eval) {
+            optimalMove = tempMove;
+            beta = min(beta, optimalMove.eval);
+        }
+        if(beta <= alpha) {
+            return optimalMove;
+        }
+    }
 
-    // TODO
-
-    // use position. PushMove(Move) and PopMove(Move) to make and undo moves
-    // use GenLegalMoveList(std::vector<Move>&) to get all legal moves
-
+    return optimalMove;
 }
