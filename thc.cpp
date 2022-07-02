@@ -932,17 +932,27 @@ std::string ChessPosition::ToDebugStr( const char *label )
     if( label )
         s = label;
     s += (white ? "\nWhite to move\n" : "\nBlack to move\n");
+    s += "    a   b   c   d   e   f   g   h  \n";
+    s += "  ---------------------------------\n";
     for( int row=0; row<8; row++ )
     {
+        s += 8 - row + '0';
+        s += ' ';
         for( int col=0; col<8; col++ )
         {
             char c = *p++;
             if( c==' ' )
-                c = '.';
-           s += c;
+                c = ' ';
+            s += "| ";
+            s += c;
+            s += ' ';
         }
+        s += "| ";
+        s += 8 - row + '0';
         s +=  '\n';
+        s += "  ---------------------------------\n";
     }
+    s += "    a   b   c   d   e   f   g   h  \n";
     return s;
 }
 

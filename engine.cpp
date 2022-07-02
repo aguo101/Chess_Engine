@@ -1,52 +1,62 @@
 #include "engine.h"
+#include <vector>
 
-using std::unique_ptr;
+using std::vector;
+
+uint32_t Engine::m_depth = 5;
+
+constexpr int rookVal = 5;
+constexpr int knightVal = 3;
+constexpr int bishopVal = 3;
+constexpr int queenVal = 9;
+constexpr int kingVal = 10000;
+constexpr int pawnVal = 1;
 
 Engine::Engine() {}
 
 double Engine::evaluatePosition(ChessPosition& position) {
     // TODO: implement positional advantages
 
-    static const int numSquares = 64;
+    constexpr int numSquares = 64;
 
     double eval = 0;
     for (int i = 0; i < numSquares; i++) {
-        switch(position->squares[i]) {
+        switch(position.squares[i]) {
             case 'r':
-                eval -= 5;
+                eval -= rookVal;
                 break;
             case 'n':
-                eval -= 3;
+                eval -= knightVal;
                 break;
             case 'b':
-                eval -= 3;
+                eval -= bishopVal;
                 break;
             case 'q':
-                eval -= 9;
+                eval -= queenVal;
                 break;
             case 'k':
-                eval -= 1000;
+                eval -= kingVal;
                 break;
             case 'p':
-                eval -= 1;
+                eval -= pawnVal;
                 break;
             case 'R':
-                eval += 5;
+                eval += rookVal;
                 break;
             case 'N':
-                eval += 3;
+                eval += knightVal;
                 break;
             case 'B':
-                eval += 3;
+                eval += bishopVal;
                 break;
             case 'Q':
-                eval += 9;
+                eval += queenVal;
                 break;
             case 'K':
-                eval += 1000;
+                eval += kingVal;
                 break;
             case 'P':
-                eval += 1;
+                eval += pawnVal;
                 break;
         }
     }
@@ -54,15 +64,47 @@ double Engine::evaluatePosition(ChessPosition& position) {
 }
 
 Move Engine::getMove(ChessRules& position) {
-    // TODO: implement minimax function
-    unique_ptr<MoveEval> moveToMake = minimax(position);
-    return moveToMake->move;
+    MoveEval moveToMake = minimax(position, m_depth);
+    return moveToMake.move;
 }
 
-unique_ptr<MoveEval> Engine::minimax(ChessRules& position) {
+MoveEval Engine::minimax(ChessRules& position, uint32_t depth) {
+    if(depth == 0) {
+        MoveEval ret;
+        ret.eval = evaluatePosition(position);
+        return ret;
+    }
+
+    MoveEval optimalMove;
+
+    return optimalMove; // temporary
+
+    // check for Mate/Draw
+    // TERMINAL score_terminal;
+    // position.Evaluate(score_terminal);
+    // switch (score_terminal) {
+    //     case TERMINAL_WCHECKMATE:
+    //         return true;
+    //         break;
+    //     case TERMINAL_WSTALEMATE:
+    //         return true;
+    //         break;
+    //     case TERMINAL_BCHECKMATE:
+    //         return true;
+    //         break;
+    //     case TERMINAL_BSTALEMATE:
+    //         return true;
+    //         break;
+    // }
+
+    // vector<Move> moves;
+    // position.GenLegalMoveList(moves);
+
+
+
     // TODO
 
     // use position. PushMove(Move) and PopMove(Move) to make and undo moves
     // use GenLegalMoveList(std::vector<Move>&) to get all legal moves
-    return nullptr;
+
 }

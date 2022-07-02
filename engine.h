@@ -1,5 +1,4 @@
-#include <memory>
-#include "thc.h"
+#include "player.h"
 
 using namespace thc;
 
@@ -8,7 +7,7 @@ struct MoveEval {
     double eval;
 };
 
-class Engine {
+class Engine : public Player {
     public:
 
     Engine();
@@ -19,5 +18,7 @@ class Engine {
 
     private:
 
-    std::unique_ptr<MoveEval> minimax(ChessRules& position);
+    MoveEval minimax(ChessRules& position, uint32_t depth);
+
+    static uint32_t m_depth;
 };
