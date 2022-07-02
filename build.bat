@@ -1,0 +1,1 @@
+g++ -o main main.cpp thc.cpp play.cpp player.cpp engine.cpp human.cpp -I.
