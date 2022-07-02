@@ -5,6 +5,7 @@
 using std::vector;
 using std::max;
 using std::min;
+using std::swap;
 
 uint32_t Engine::m_depth = 7;
 
@@ -103,10 +104,16 @@ MoveEval Engine::minimax(ChessRules& position, uint32_t depth, double alpha, dou
     position.GenLegalMoveList(moves);
 
     bool whiteToPlay = position.WhiteToPlay();
-    if(whiteToPlay) {
-        optimalMove.eval = -kingVal;
-    } else {
-        optimalMove.eval = kingVal;
+    optimalMove.eval = (whiteToPlay * -2 + 1) * kingVal;
+
+    // heuristic: evaluate a capture first
+    for(Move& mv : moves) {
+        char square = position.squares[mv.dst];
+        char offset = !whiteToPlay * 32;
+        if(square >= 'a' + offset && square <= 'z' + offset) {
+            swap(mv, moves[0]);
+            break;
+        }
     }
 
     MoveEval tempMove;
