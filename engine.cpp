@@ -1,11 +1,13 @@
 #include "engine.h"
-#include <vector>
 #include <stdlib.h>
+#include <thread>
+#include <future>
 
-using std::vector;
 using std::max;
 using std::min;
 using std::swap;
+using std::future;
+using std::async;
 
 uint32_t Engine::m_depth = 7;
 
@@ -68,7 +70,45 @@ double Engine::evaluatePosition(ChessPosition& position) {
 }
 
 Move Engine::getMove(ChessRules& position) {
-    MoveEval moveToMake = minimax(position, m_depth, -kingVal, kingVal);
+
+    static constexpr size_t maxThreads = 100;
+
+    vector<Move> moves;
+    position.GenLegalMoveList(moves);
+    
+    size_t numThreads = moves.size(); //min(maxThreads, moves.size());
+    vector<future<MoveEval>> threads(numThreads);
+
+    vector<vector<Move>> movesForThreads(numThreads);
+    int movesPerThread = moves.size() / numThreads;
+    for(int i = 0; i < numThreads - 1; i++) {
+        movesForThreads[i] = vector<Move>(moves.begin() + i * movesPerThread, moves.begin() + (i + 1) * movesPerThread);
+    }
+    movesForThreads[numThreads - 1] = vector<Move>(moves.begin() + (numThreads - 1) * movesPerThread, moves.end()); 
+    
+    for(int i = 0; i < numThreads; i++) {
+        threads[i] = async(std::launch::async, [this, &position, &movesForThreads](int index) {
+            ChessRules copy(position);
+            return minimaxThread(copy, movesForThreads[index], m_depth, -kingVal, kingVal);
+        }, i);
+    }
+    
+    MoveEval moveToMake;
+    bool whiteToPlay = position.WhiteToPlay();
+    moveToMake.eval = startingEval(whiteToPlay);
+
+    for(int i = 0; i < numThreads; i++) {
+        MoveEval temp = threads[i].get();
+        
+        if(whiteToPlay && temp.eval > moveToMake.eval) {
+            moveToMake = temp;
+        }
+        else if(!whiteToPlay && temp.eval < moveToMake.eval) {
+            moveToMake = temp;
+        }
+    }
+    
+    // MoveEval moveToMake = minimax(position, m_depth, -kingVal, kingVal);
     return moveToMake.move;
 }
 
@@ -104,7 +144,7 @@ MoveEval Engine::minimax(ChessRules& position, uint32_t depth, double alpha, dou
     position.GenLegalMoveList(moves);
 
     bool whiteToPlay = position.WhiteToPlay();
-    optimalMove.eval = (whiteToPlay * -2 + 1) * kingVal;
+    optimalMove.eval = startingEval(whiteToPlay);
 
     // heuristic: evaluate a capture first
     for(Move& mv : moves) {
@@ -136,4 +176,32 @@ MoveEval Engine::minimax(ChessRules& position, uint32_t depth, double alpha, dou
     }
 
     return optimalMove;
+}
+
+MoveEval Engine::minimaxThread(ChessRules& position, vector<Move>& moves, uint32_t depth, double alpha, double beta) {
+
+    MoveEval optimal;
+    bool whiteToPlay = position.WhiteToPlay();
+    optimal.eval = startingEval(whiteToPlay);
+
+    for(Move mv : moves) {
+        position.PushMove(mv);
+        MoveEval temp = minimax(position, depth - 1, alpha, beta);
+        if(whiteToPlay && temp.eval > optimal.eval) {
+            optimal = temp;
+            optimal.move = mv;
+            alpha = max(alpha, optimal.eval);
+        }
+        else if(!whiteToPlay && temp.eval < optimal.eval) {
+            optimal = temp;
+            optimal.move = mv;
+            beta = min(beta, optimal.eval);
+        }
+    }
+
+    return optimal;
+}
+
+double Engine::startingEval(bool whiteToPlay) {
+    return (whiteToPlay * -2 + 1) * kingVal * 10;
 }

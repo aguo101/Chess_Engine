@@ -17,4 +17,5 @@ Move Human::getMove(ChessRules& position) {
         }
         cout << "Enter your move: ";
     }
+    return mv; // should never be hit
 }
