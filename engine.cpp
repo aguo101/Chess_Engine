@@ -147,12 +147,13 @@ MoveEval Engine::minimax(ChessRules& position, uint32_t depth, double alpha, dou
     optimalMove.eval = startingEval(whiteToPlay);
 
     // heuristic: evaluate a capture first
+    int swapPos = 0;
     for(Move& mv : moves) {
         char square = position.squares[mv.dst];
         char offset = !whiteToPlay * 32;
         if(square >= 'a' + offset && square <= 'z' + offset) {
-            swap(mv, moves[0]);
-            break;
+            swap(mv, moves[swapPos]);
+            swapPos++;
         }
     }
 
