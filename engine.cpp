@@ -6,8 +6,8 @@
 using std::max;
 using std::min;
 using std::swap;
-using std::future;
 using std::async;
+using std::future;
 
 uint32_t Engine::m_depth = 7;
 
@@ -17,6 +17,20 @@ constexpr double bishopVal = 3;
 constexpr double queenVal = 9;
 constexpr double kingVal = 10000;
 constexpr double pawnVal = 1;
+
+vector<double> Engine::knightMap = {
+    -0.30,-0.20,-0.20,-0.20,-0.20,-0.20,-0.20,-0.30,
+    -0.20, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00,-0.20,
+    -0.20, 0.00, 0.20, 0.20, 0.20, 0.20, 0.00,-0.20,
+    -0.20, 0.00, 0.20, 0.30, 0.30, 0.20, 0.00,-0.20,
+    -0.20, 0.00, 0.20, 0.30, 0.30, 0.20, 0.00,-0.20,
+    -0.20, 0.00, 0.20, 0.20, 0.20, 0.20, 0.00,-0.20,
+    -0.20, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00,-0.20,
+    -0.30,-0.20,-0.20,-0.20,-0.20,-0.20,-0.20,-0.30
+};
+
+// first and last row shouldn't be necessary
+vector<double> Engine::pawnMap = {queenVal,0.3,0.2,0.1,0.0,-0.1,-0.2,-queenVal};
 
 Engine::Engine() {}
 
@@ -33,6 +47,7 @@ double Engine::evaluatePosition(ChessPosition& position) {
                 break;
             case 'n':
                 eval -= knightVal;
+                eval -= knightMap[i];
                 break;
             case 'b':
                 eval -= bishopVal;
@@ -45,12 +60,14 @@ double Engine::evaluatePosition(ChessPosition& position) {
                 break;
             case 'p':
                 eval -= pawnVal;
+                eval -= pawnMap[i / 8];
                 break;
             case 'R':
                 eval += rookVal;
                 break;
             case 'N':
                 eval += knightVal;
+                eval += knightMap[i];
                 break;
             case 'B':
                 eval += bishopVal;
@@ -63,6 +80,7 @@ double Engine::evaluatePosition(ChessPosition& position) {
                 break;
             case 'P':
                 eval += pawnVal;
+                eval += pawnMap[i / 8];
                 break;
         }
     }
@@ -108,11 +126,21 @@ Move Engine::getMove(ChessRules& position) {
         }
     }
     
-    // MoveEval moveToMake = minimax(position, m_depth, -kingVal, kingVal);
+    // MoveEval moveToMake = minimax(position, m_depth, -kingVal, kingVal); send a cached eval too
     return moveToMake.move;
 }
 
-MoveEval Engine::minimax(ChessRules& position, uint32_t depth, double alpha, double beta) {
+MoveEval Engine::minimax(ChessRules& position, uint32_t depth, double alpha, double beta, 
+                         unordered_map<unsigned short, pair<uint32_t, double>>& cachedEvals) {
+
+    CompressedPosition compressed;
+    unsigned short positionHash = position.Compress(compressed);
+    if(cachedEvals.count(positionHash) > 0 && cachedEvals[positionHash].first >= depth) {
+        MoveEval ret;
+        ret.eval = cachedEvals[positionHash].second;
+        return ret;
+    }
+
     if(depth == 0) {
         MoveEval ret;
         ret.eval = evaluatePosition(position);
@@ -126,13 +154,13 @@ MoveEval Engine::minimax(ChessRules& position, uint32_t depth, double alpha, dou
     position.Evaluate(score_terminal);
     switch (score_terminal) {
         case TERMINAL_WCHECKMATE:
-            optimalMove.eval = -kingVal;
+            optimalMove.eval = -kingVal - depth;
             return optimalMove;
         case TERMINAL_WSTALEMATE:
             optimalMove.eval = 0;
             return optimalMove;
         case TERMINAL_BCHECKMATE:
-            optimalMove.eval = kingVal;
+            optimalMove.eval = kingVal + depth;
             return optimalMove;
             break;
         case TERMINAL_BSTALEMATE:
@@ -146,7 +174,7 @@ MoveEval Engine::minimax(ChessRules& position, uint32_t depth, double alpha, dou
     bool whiteToPlay = position.WhiteToPlay();
     optimalMove.eval = startingEval(whiteToPlay);
 
-    // heuristic: evaluate a capture first
+    // heuristic: evaluate all captures first
     int swapPos = 0;
     for(Move& mv : moves) {
         char square = position.squares[mv.dst];
@@ -160,7 +188,7 @@ MoveEval Engine::minimax(ChessRules& position, uint32_t depth, double alpha, dou
     MoveEval tempMove;
     for(Move& mv : moves) {
         position.PushMove(mv);
-        tempMove = minimax(position, depth - 1, alpha, beta);
+        tempMove = minimax(position, depth - 1, alpha, beta, cachedEvals);
         tempMove.move = mv;
         position.PopMove(mv);
         if(whiteToPlay && tempMove.eval > optimalMove.eval) {
@@ -176,6 +204,12 @@ MoveEval Engine::minimax(ChessRules& position, uint32_t depth, double alpha, dou
         }
     }
 
+    // only cache the position if we have enough depth left
+    static int minCacheDepth = m_depth - 5;
+    if(depth >= minCacheDepth) {
+        cachedEvals[positionHash] = pair<uint32_t, double>(depth, optimalMove.eval);
+    }
+
     return optimalMove;
 }
 
@@ -185,9 +219,11 @@ MoveEval Engine::minimaxThread(ChessRules& position, vector<Move>& moves, uint32
     bool whiteToPlay = position.WhiteToPlay();
     optimal.eval = startingEval(whiteToPlay);
 
+    unordered_map<unsigned short, pair<uint32_t, double>> cachedEvals;
+
     for(Move mv : moves) {
         position.PushMove(mv);
-        MoveEval temp = minimax(position, depth - 1, alpha, beta);
+        MoveEval temp = minimax(position, depth - 1, alpha, beta, cachedEvals);
         if(whiteToPlay && temp.eval > optimal.eval) {
             optimal = temp;
             optimal.move = mv;
